@@ -7,8 +7,7 @@ export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showSetupModal, setShowSetupModal] = useState(false);
-  const [selectedOpponent, setSelectedOpponent] = useState<User | null>(null);
+  const [showReadyModal, setShowReadyModal] = useState(false);
   const [gameSettings, setGameSettings] = useState({
     startScore: 501,
     legs: 3,
@@ -30,11 +29,20 @@ export default function Home() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, fetchGames)
       .subscribe();
 
+    // Mark user offline when they leave the page
+    const handleBeforeUnload = () => {
+      if (currentUser) {
+        supabase.from('users').update({ is_online: false, is_ready: false }).eq('id', currentUser.id);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       usersChannel.unsubscribe();
       gamesChannel.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []);
+  }, [currentUser]);
 
   async function fetchCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -59,35 +67,36 @@ export default function Home() {
     const { data } = await supabase
       .from('games')
       .select('*')
-      .in('status', ['waiting', 'playing'])
+      .eq('status', 'waiting')
       .order('created_at', { ascending: false });
     if (data) setGames(data);
   }
 
   async function toggleReady() {
     if (!currentUser) return;
-    await supabase
-      .from('users')
-      .update({ is_ready: !currentUser.is_ready })
-      .eq('id', currentUser.id);
-    setCurrentUser({ ...currentUser, is_ready: !currentUser.is_ready });
-  }
-
-  function challengePlayer(opponent: User) {
-    setSelectedOpponent(opponent);
-    setShowSetupModal(true);
-  }
-
-  async function startGame() {
-    if (!currentUser || !selectedOpponent) return;
     
+    if (currentUser.is_ready) {
+      // Cancel ready - delete their waiting game
+      await supabase.from('games').delete().eq('player1_id', currentUser.id).eq('status', 'waiting');
+      await supabase.from('users').update({ is_ready: false }).eq('id', currentUser.id);
+      setCurrentUser({ ...currentUser, is_ready: false });
+    } else {
+      // Show modal to set game options
+      setShowReadyModal(true);
+    }
+  }
+
+  async function createGame() {
+    if (!currentUser) return;
+    
+    // Create game in waiting status
     const { data: game } = await supabase
       .from('games')
       .insert({
         player1_id: currentUser.id,
-        player2_id: selectedOpponent.id,
+        player2_id: null,
         player1_name: currentUser.username,
-        player2_name: selectedOpponent.username,
+        player2_name: null,
         start_score: gameSettings.startScore,
         legs_to_win: Math.ceil(gameSettings.legs / 2),
         current_leg: 1,
@@ -96,14 +105,46 @@ export default function Home() {
         player1_score: gameSettings.startScore,
         player2_score: gameSettings.startScore,
         current_player: currentUser.id,
-        status: 'playing',
+        status: 'waiting',
       })
       .select()
       .single();
 
     if (game) {
+      await supabase.from('users').update({ is_ready: true }).eq('id', currentUser.id);
+      setCurrentUser({ ...currentUser, is_ready: true });
+      setShowReadyModal(false);
+    }
+  }
+
+  async function joinGame(game: Game) {
+    if (!currentUser) return;
+    
+    // Join the game
+    const { data: updatedGame } = await supabase
+      .from('games')
+      .update({
+        player2_id: currentUser.id,
+        player2_name: currentUser.username,
+        status: 'playing',
+      })
+      .eq('id', game.id)
+      .select()
+      .single();
+
+    if (updatedGame) {
+      // Mark both players as not ready
+      await supabase.from('users').update({ is_ready: false }).eq('id', game.player1_id);
+      await supabase.from('users').update({ is_ready: false }).eq('id', currentUser.id);
+      
+      // Go to game
       window.location.href = `/game/${game.id}`;
     }
+  }
+
+  // Find game created by a user
+  function getUserGame(userId: string): Game | undefined {
+    return games.find(g => g.player1_id === userId && g.status === 'waiting');
   }
 
   return (
@@ -117,7 +158,7 @@ export default function Home() {
                 className={`btn btn-ready ${currentUser.is_ready ? 'active' : ''}`}
                 onClick={toggleReady}
               >
-                {currentUser.is_ready ? 'Ready ✓' : 'Ready Up'}
+                {currentUser.is_ready ? 'Cancel Ready' : 'Ready Up'}
               </button>
               <Link href="/stats">
                 <button className="btn">Stats</button>
@@ -147,16 +188,29 @@ export default function Home() {
         <div className="card">
           <h2 className="card-title">Online Players</h2>
           <div className="user-list">
-            {users.filter(u => u.id !== currentUser?.id).map(user => (
-              <div
-                key={user.id}
-                className={`user-item ${user.is_ready ? 'ready' : ''}`}
-                onClick={() => challengePlayer(user)}
-              >
-                <span className="user-name">{user.username}</span>
-                <span className={`status-dot ${user.is_ready ? 'online' : ''}`} />
-              </div>
-            ))}
+            {users.filter(u => u.id !== currentUser?.id).map(user => {
+              const userGame = getUserGame(user.id);
+              return (
+                <div
+                  key={user.id}
+                  className={`user-item ${user.is_ready ? 'ready' : ''}`}
+                >
+                  <span className="user-name">{user.username}</span>
+                  
+                  {user.is_ready && userGame ? (
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => joinGame(userGame)}
+                      style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    >
+                      Join Game ({userGame.start_score} · Best of {userGame.legs_to_win * 2 - 1})
+                    </button>
+                  ) : (
+                    <span className={`status-dot ${user.is_ready ? 'online' : ''}`} />
+                  )}
+                </div>
+              );
+            })}
             {users.filter(u => u.id !== currentUser?.id).length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '20px' }}>
                 No players online
@@ -169,7 +223,7 @@ export default function Home() {
         <div className="card">
           <h2 className="card-title">Live Games</h2>
           <div className="game-list">
-            {games.map(game => (
+            {games.filter(g => g.status === 'playing').map(game => (
               <Link key={game.id} href={`/game/${game.id}`} style={{ textDecoration: 'none' }}>
                 <div className="game-item">
                   <div className="game-players">
@@ -188,7 +242,7 @@ export default function Home() {
                 </div>
               </Link>
             ))}
-            {games.length === 0 && (
+            {games.filter(g => g.status === 'playing').length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '40px' }}>
                 No active games
               </p>
@@ -196,7 +250,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Stats / Info */}
+        {/* How to Play */}
         <div className="card">
           <h2 className="card-title">How to Play</h2>
           <div style={{ color: '#8b9dc3', lineHeight: 1.8 }}>
@@ -204,13 +258,13 @@ export default function Home() {
               1. Login or register an account
             </p>
             <p style={{ marginBottom: '15px' }}>
-              2. Click <strong style={{ color: '#00ff88' }}>Ready Up</strong> to go green
+              2. Click <strong style={{ color: '#00ff88' }}>Ready Up</strong> and set game options
             </p>
             <p style={{ marginBottom: '15px' }}>
-              3. Click on a ready player to challenge them
+              3. Other players see you as ready with <strong>Join Game</strong> button
             </p>
             <p style={{ marginBottom: '15px' }}>
-              4. Set your game options (501/301, legs)
+              4. They click Join to start the game
             </p>
             <p>
               5. Play with webcam and track scores!
@@ -219,13 +273,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Game Setup Modal */}
-      {showSetupModal && (
-        <div className="modal-overlay" onClick={() => setShowSetupModal(false)}>
+      {/* Ready Up Modal */}
+      {showReadyModal && (
+        <div className="modal-overlay" onClick={() => setShowReadyModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h2 className="modal-title">Game Setup</h2>
+            <h2 className="modal-title">Set Up Game</h2>
             <p style={{ textAlign: 'center', marginBottom: '20px', color: '#8b9dc3' }}>
-              Challenge: <strong style={{ color: '#00d4ff' }}>{selectedOpponent?.username}</strong>
+              Choose your game settings
             </p>
             
             <div className="form-group">
@@ -255,11 +309,11 @@ export default function Home() {
             </div>
 
             <div className="modal-buttons">
-              <button className="btn" onClick={() => setShowSetupModal(false)}>
+              <button className="btn" onClick={() => setShowReadyModal(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={startGame}>
-                Start Game
+              <button className="btn btn-primary" onClick={createGame}>
+                Create Game
               </button>
             </div>
           </div>
