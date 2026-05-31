@@ -124,6 +124,11 @@ export default function Home() {
     if (data) setGames(data);
   }
 
+  // Remove finished games from list (they're archived)
+  useEffect(() => {
+    setGames(prev => prev.filter(g => g.status !== 'finished'));
+  }, [games.some(g => g.status === 'finished')]);
+
   async function toggleReady() {
     if (!currentUser) return;
     
@@ -398,23 +403,7 @@ export default function Home() {
           <h2 className="card-title">Live Games</h2>
           <div className="game-list">
             {games.filter(g => g.status === 'playing').map(game => (
-              <Link key={game.id} href={`/game/${game.id}`} style={{ textDecoration: 'none' }}>
-                <div className="game-item">
-                  <div className="game-players">
-                    <span>{game.player1_name}</span>
-                    <span className="game-vs">VS</span>
-                    <span>{game.player2_name}</span>
-                  </div>
-                  <div className="game-score">
-                    <div className="game-legs">
-                      Legs: {game.player1_legs} - {game.player2_legs}
-                    </div>
-                    <div className="game-current">
-                      {game.player1_score} - {game.player2_score}
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              <LiveGameCard key={game.id} game={game} />
             ))}
             {games.filter(g => g.status === 'playing').length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '40px' }}>
@@ -555,5 +544,81 @@ export default function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+// Live Game Card Component with real-time stats
+function LiveGameCard({ game }: { game: Game }) {
+  const [throws, setThrows] = useState<any[]>([]);
+  
+  useEffect(() => {
+    fetchThrows();
+    
+    // Subscribe to throws for this game
+    const channel = supabase
+      .channel(`throws:${game.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'throws', filter: `game_id=eq.${game.id}` }, fetchThrows)
+      .subscribe();
+    
+    return () => { channel.unsubscribe(); };
+  }, [game.id]);
+  
+  async function fetchThrows() {
+    const { data } = await supabase.from('throws').select('*').eq('game_id', game.id);
+    if (data) setThrows(data);
+  }
+  
+  function calcAvg(playerId: string): number {
+    const playerThrows = throws.filter(t => t.player_id === playerId && !t.is_bust);
+    if (playerThrows.length === 0) return 0;
+    const total = playerThrows.reduce((sum, t) => sum + t.score, 0);
+    return Math.round((total / (playerThrows.length * 3)) * 300) / 100;
+  }
+  
+  const p1Avg = calcAvg(game.player1_id);
+  const p2Avg = calcAvg(game.player2_id);
+  
+  return (
+    <Link href={`/game/${game.id}`} style={{ textDecoration: 'none' }}>
+      <div className="game-item" style={{ border: '2px solid #00ff88', boxShadow: '0 0 15px rgba(0,255,136,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '0.75rem', color: '#8b9dc3' }}>
+            {game.start_score} · Best of {game.legs_to_win * 2 - 1} · Leg {game.current_leg}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: '#00ff88', background: 'rgba(0,255,136,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
+            ● LIVE
+          </span>
+        </div>
+        <div className="game-players" style={{ marginBottom: '8px' }}>
+          <span style={{ fontWeight: game.current_player === game.player1_id ? '700' : '400', color: game.current_player === game.player1_id ? '#00d4ff' : '#fff' }}>
+            {game.player1_name}
+          </span>
+          <span className="game-vs">VS</span>
+          <span style={{ fontWeight: game.current_player === game.player2_id ? '700' : '400', color: game.current_player === game.player2_id ? '#00d4ff' : '#fff' }}>
+            {game.player2_name}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', textAlign: 'center' }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>Legs</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#00ff88' }}>
+              {game.player1_legs}-{game.player2_legs}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>Score</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: '700' }}>
+              {game.player1_score}-{game.player2_score}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>Avg</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#ffd700' }}>
+              {p1Avg.toFixed(2)}-{p2Avg.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
