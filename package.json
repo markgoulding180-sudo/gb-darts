@@ -1,0 +1,28 @@
+{
+  "name": "gb-darts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/auth-helpers-nextjs": "^0.8.0",
+    "simple-peer": "^9.11.1",
+    "socket.io-client": "^4.7.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/simple-peer": "^9.11.0",
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.0.0"
+  }
+}
