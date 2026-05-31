@@ -44,11 +44,18 @@ export default function Home() {
       }
     }, 30000);
 
+    // Check for inactive users every minute (10 minute timeout)
+    const inactiveCheck = setInterval(() => {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      supabase.from('users').update({ is_online: false, is_ready: false }).lt('last_seen', tenMinutesAgo);
+    }, 60000);
+
     return () => {
       usersChannel.unsubscribe();
       gamesChannel.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       clearInterval(heartbeat);
+      clearInterval(inactiveCheck);
     };
   }, [currentUser]);
 
@@ -63,13 +70,13 @@ export default function Home() {
   }
 
   async function fetchUsers() {
-    // Only show users who were active in the last 2 minutes
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    // Only show users who were active in the last 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('users')
       .select('*')
       .eq('is_online', true)
-      .gte('last_seen', twoMinutesAgo)
+      .gte('last_seen', tenMinutesAgo)
       .order('username');
     if (data) setUsers(data);
   }
@@ -177,6 +184,16 @@ export default function Home() {
               <Link href="/settings">
                 <button className="btn">Settings</button>
               </Link>
+              <button 
+                className="btn" 
+                onClick={async () => {
+                  await supabase.from('users').update({ is_online: false, is_ready: false }).eq('id', currentUser.id);
+                  setCurrentUser({ ...currentUser, is_online: false, is_ready: false });
+                }}
+                style={{ fontSize: '0.8rem' }}
+              >
+                Go Offline
+              </button>
               <span style={{ color: '#00d4ff', alignSelf: 'center' }}>
                 {currentUser.username}
               </span>
