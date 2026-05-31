@@ -31,7 +31,17 @@ export default function Home() {
 
     const gamesChannel = supabase
       .channel('games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, fetchGames)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, (payload) => {
+        fetchGames();
+        // Check if a game we're in just started (status changed to playing)
+        if (payload.new && payload.new.status === 'playing' && currentUser) {
+          const game = payload.new;
+          if (game.player1_id === currentUser.id || game.player2_id === currentUser.id) {
+            // Redirect to the game
+            window.location.href = `/game/${game.id}`;
+          }
+        }
+      })
       .subscribe();
 
     // Mark user offline when they leave the page using Beacon API
@@ -219,7 +229,7 @@ export default function Home() {
       await supabase.from('users').update({ is_ready: false }).eq('id', game.player1_id);
       await supabase.from('users').update({ is_ready: false }).eq('id', currentUser.id);
       
-      // Go to game
+      // Redirect to game
       window.location.href = `/game/${game.id}`;
     }
   }
