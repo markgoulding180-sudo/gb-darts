@@ -234,14 +234,22 @@ export default function GamePage() {
     setEditingThrow(null);
     setEditScore('');
     
+    // Small delay to ensure database has committed
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     // Force refresh with fresh data
-    const { data: allThrows } = await supabase
+    const { data: allThrows, error: fetchError } = await supabase
       .from('throws')
       .select('*')
       .eq('game_id', game.id)
       .order('created_at');
+    
+    if (fetchError) {
+      console.error('Error fetching throws:', fetchError);
+    }
       
     if (allThrows) {
+      console.log('Fresh throws:', allThrows.map(t => ({ id: t.id, score: t.score, player: t.player_id })));
       setThrows(allThrows);
       // Recalculate stats immediately with fresh data
       const p1Throws = allThrows.filter(t => t.player_id === game.player1_id && !t.is_bust);
