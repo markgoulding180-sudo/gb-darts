@@ -29,13 +29,26 @@ export default function Home() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, fetchGames)
       .subscribe();
 
-    // Mark user offline when they leave the page
+    // Mark user offline when they leave the page using Beacon API
     const handleBeforeUnload = () => {
       if (currentUser) {
-        supabase.from('users').update({ is_online: false, is_ready: false }).eq('id', currentUser.id);
+        // Use sendBeacon for reliable delivery on page close
+        const data = JSON.stringify({ userId: currentUser.id });
+        navigator.sendBeacon('/api/offline', data);
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Also mark offline when tab becomes hidden (user switches tabs)
+    const handleVisibilityChange = () => {
+      if (document.hidden && currentUser) {
+        supabase.from('users').update({ is_online: false, is_ready: false }).eq('id', currentUser.id);
+      } else if (!document.hidden && currentUser) {
+        // User came back - mark online
+        supabase.from('users').update({ is_online: true, last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Heartbeat - update last_seen every 30 seconds
     const heartbeat = setInterval(() => {
@@ -44,18 +57,15 @@ export default function Home() {
       }
     }, 30000);
 
-    // Check for inactive users every minute (10 minute timeout)
-    const inactiveCheck = setInterval(() => {
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      supabase.from('users').update({ is_online: false, is_ready: false }).lt('last_seen', tenMinutesAgo);
-    }, 60000);
+
 
     return () => {
       usersChannel.unsubscribe();
       gamesChannel.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(heartbeat);
-      clearInterval(inactiveCheck);
+
     };
   }, [currentUser]);
 
@@ -70,13 +80,11 @@ export default function Home() {
   }
 
   async function fetchUsers() {
-    // Only show users who were active in the last 10 minutes
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Show all users marked as online (they mark themselves offline when leaving)
     const { data } = await supabase
       .from('users')
       .select('*')
       .eq('is_online', true)
-      .gte('last_seen', tenMinutesAgo)
       .order('username');
     if (data) setUsers(data);
   }
