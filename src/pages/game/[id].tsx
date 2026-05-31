@@ -607,17 +607,44 @@ export default function GamePage() {
         <div style={{ textAlign: 'center', padding: '15px', background: 'rgba(0,255,136,0.1)', borderTop: '1px solid rgba(0,255,136,0.3)' }}>
           <div style={{ fontSize: '1.3rem', color: '#00ff88', fontWeight: '700' }}>Game Over!</div>
           <div style={{ marginTop: '5px' }}>Winner: {game.winner === currentUser?.id ? myName : opponentName}</div>
-          <button onClick={() => router.push('/')} style={{
-            marginTop: '10px',
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+            <button onClick={() => router.push('/')} style={{
+              padding: '8px 20px',
+              background: '#00d4ff',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#0a0e1a',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}>
+              Exit Game
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Game Button - Only show during active game */}
+      {game.status === 'playing' && (
+        <div style={{ textAlign: 'center', padding: '10px', borderTop: '1px solid rgba(255,51,102,0.3)' }}>
+          <button onClick={async () => {
+            if (confirm('Are you sure you want to cancel this game? It will be deleted permanently.')) {
+              // Delete throws first
+              await supabase.from('throws').delete().eq('game_id', game.id);
+              // Delete game
+              await supabase.from('games').delete().eq('id', game.id);
+              router.push('/');
+            }
+          }} style={{
             padding: '8px 20px',
-            background: '#00d4ff',
-            border: 'none',
+            background: 'rgba(255,51,102,0.2)',
+            border: '1px solid #ff3366',
             borderRadius: '8px',
-            color: '#0a0e1a',
+            color: '#ff3366',
             fontWeight: '600',
             cursor: 'pointer',
+            fontSize: '0.85rem',
           }}>
-            Back to Lobby
+            Cancel Game
           </button>
         </div>
       )}

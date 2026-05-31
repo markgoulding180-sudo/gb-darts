@@ -59,6 +59,9 @@ CREATE POLICY "Games insertable by authenticated" ON games FOR INSERT WITH CHECK
 CREATE POLICY "Games updatable by players" ON games FOR UPDATE USING (
   auth.uid() = player1_id OR auth.uid() = player2_id
 );
+CREATE POLICY "Games deletable by players" ON games FOR DELETE USING (
+  auth.uid() = player1_id OR auth.uid() = player2_id
+);
 
 -- Throws: readable by game players, insertable by current player
 CREATE POLICY "Throws readable by game players" ON throws FOR SELECT USING (
