@@ -17,7 +17,6 @@ export default function Settings() {
 
   useEffect(() => {
     getUser();
-    getCameras();
   }, []);
 
   useEffect(() => {
@@ -41,8 +40,13 @@ export default function Settings() {
     }
   }
 
-  async function getCameras() {
+  async function requestCameraPermission() {
     try {
+      // First request permission by getting user media
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream.getTracks().forEach(track => track.stop()); // Stop immediately, just needed permission
+      
+      // Now enumerate devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setCameras(videoDevices);
@@ -50,7 +54,8 @@ export default function Settings() {
         setSelectedCamera(videoDevices[0].deviceId);
       }
     } catch (err) {
-      console.log('Could not get cameras');
+      console.log('Camera permission denied or error:', err);
+      alert('Please allow camera access in your browser settings to use the webcam feature.');
     }
   }
 
@@ -169,20 +174,26 @@ export default function Settings() {
         <div className="card">
           <h2 className="card-title">Webcam Settings</h2>
           
-          <div className="form-group">
-            <label className="form-label">Select Camera</label>
-            <select
-              className="form-select"
-              value={selectedCamera}
-              onChange={e => setSelectedCamera(e.target.value)}
-            >
-              {cameras.map(camera => (
-                <option key={camera.deviceId} value={camera.deviceId}>
-                  {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
-                </option>
-              ))}
-            </select>
-          </div>
+          {cameras.length === 0 ? (
+            <button className="btn btn-primary" onClick={requestCameraPermission} style={{ width: '100%', marginBottom: '20px' }}>
+              Enable Camera Access
+            </button>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Select Camera</label>
+              <select
+                className="form-select"
+                value={selectedCamera}
+                onChange={e => setSelectedCamera(e.target.value)}
+              >
+                {cameras.map(camera => (
+                  <option key={camera.deviceId} value={camera.deviceId}>
+                    {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={{ 
             background: '#000', 
@@ -204,18 +215,7 @@ export default function Settings() {
             Webcam preview — this is how other players will see you
           </p>
 
-          {cameras.length === 0 && (
-            <div style={{ 
-              padding: '20px', 
-              textAlign: 'center', 
-              color: '#ff3366',
-              background: 'rgba(255,51,102,0.1)',
-              borderRadius: '8px',
-              marginTop: '15px'
-            }}>
-              No cameras found. Please connect a webcam.
-            </div>
-          )}
+
         </div>
       </div>
     </div>
