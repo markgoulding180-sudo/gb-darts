@@ -34,11 +34,11 @@ export default function Home() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, (payload) => {
         fetchGames();
         // Check if a game we're in just started (status changed to playing)
-        if (payload.new && payload.new.status === 'playing' && currentUser) {
-          const game = payload.new;
-          if (game.player1_id === currentUser.id || game.player2_id === currentUser.id) {
+        const newGame = payload.new as Game;
+        if (newGame && newGame.status === 'playing' && currentUser) {
+          if (newGame.player1_id === currentUser.id || newGame.player2_id === currentUser.id) {
             // Redirect to the game
-            window.location.href = `/game/${game.id}`;
+            window.location.href = `/game/${newGame.id}`;
           }
         }
       })
