@@ -72,6 +72,21 @@ export default function Home() {
       }
     }, 30000);
 
+    // Check if someone joined our game (we're player1 and game is playing)
+    const checkGameStarted = setInterval(async () => {
+      if (!currentUser) return;
+      const { data } = await supabase
+        .from('games')
+        .select('*')
+        .eq('player1_id', currentUser.id)
+        .eq('status', 'playing')
+        .single();
+      if (data) {
+        // Someone joined our game, redirect to it
+        window.location.href = `/game/${data.id}`;
+      }
+    }, 2000); // Check every 2 seconds
+
 
 
     return () => {
@@ -80,6 +95,7 @@ export default function Home() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(heartbeat);
+      clearInterval(checkGameStarted);
 
     };
   }, [currentUser]);
