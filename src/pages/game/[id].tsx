@@ -256,18 +256,21 @@ export default function GamePage() {
             <span style={{ color: '#333', fontSize: '1rem' }}>{opponentName}'s Webcam</span>
           </div>
 
-          {/* My Webcam - Small */}
+          {/* My Webcam - Small Square, Left Aligned */}
           <div style={{
-            height: '120px',
-            background: '#000',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            border: '1px solid rgba(0,212,255,0.3)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'flex-start',
           }}>
-            <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{
+              width: '120px',
+              height: '120px',
+              background: '#000',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid rgba(0,212,255,0.3)',
+            }}>
+              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
           </div>
         </div>
       </div>
