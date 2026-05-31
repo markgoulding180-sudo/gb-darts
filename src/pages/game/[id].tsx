@@ -333,12 +333,14 @@ function PlayerColumn({ playerName, score, legs, isCurrentPlayer, isMe, videoRef
         <span style={{ color: '#00d4ff', fontSize: '0.8rem' }}>Legs: {legs}</span>
       </div>
 
-      {/* Webcam - Smaller */}
+      {/* Webcam - Square */}
       <div style={{
         background: '#000',
         borderRadius: '6px',
         overflow: 'hidden',
+        width: '140px',
         height: '140px',
+        margin: '0 auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
