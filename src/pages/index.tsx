@@ -259,6 +259,26 @@ export default function Home() {
       </header>
 
       <div className="dashboard">
+        {/* Your Game - Show if you created one */}
+        {currentUser && games.find(g => g.status === 'waiting' && g.player1_id === currentUser.id) && (
+          <div className="card" style={{ border: '2px solid #00ff88' }}>
+            <h2 className="card-title" style={{ color: '#00ff88' }}>Your Game</h2>
+            <div className="user-list">
+              {games.filter(g => g.status === 'waiting' && g.player1_id === currentUser.id).map(game => (
+                <div key={game.id} className="user-item" style={{ borderColor: '#00ff88' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="user-name">Waiting for opponent...</span>
+                    <span style={{ fontSize: '0.75rem', color: '#8b9dc3' }}>
+                      {game.start_score} · Best of {game.legs_to_win * 2 - 1}
+                      {game.pin && ' 🔒 PIN Protected'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Waiting Games - New Section */}
         <div className="card">
           <h2 className="card-title">Waiting for Opponent</h2>
