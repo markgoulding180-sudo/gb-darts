@@ -74,7 +74,99 @@ CREATE POLICY "Throws insertable by game players" ON throws FOR INSERT WITH CHEC
   )
 );
 
+-- Game History table (archived games with JSON data)
+CREATE TABLE IF NOT EXISTS game_history (
+  id UUID PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+  player1_id UUID REFERENCES users(id),
+  player2_id UUID REFERENCES users(id),
+  player1_name TEXT,
+  player2_name TEXT,
+  start_score INTEGER,
+  legs_to_win INTEGER,
+  player1_legs INTEGER,
+  player2_legs INTEGER,
+  winner_id UUID REFERENCES users(id),
+  winner_name TEXT,
+  throws JSONB, -- Array of all throws with scores, darts, etc.
+  player1_stats JSONB, -- Avg, 180s, etc.
+  player2_stats JSONB,
+  played_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  archived_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS for game_history
+alter table game_history enable row level security;
+CREATE POLICY "Game history readable by players" ON game_history FOR SELECT USING (
+  auth.uid() = player1_id OR auth.uid() = player2_id
+);
+
+-- Function to archive a finished game
+CREATE OR REPLACE FUNCTION archive_finished_game(game_id UUID)
+RETURNS VOID AS $$
+DECLARE
+  game_record games%ROWTYPE;
+  throws_json JSONB;
+  p1_stats JSONB;
+  p2_stats JSONB;
+BEGIN
+  -- Get game data
+  SELECT * INTO game_record FROM games WHERE id = game_id;
+  
+  -- Get all throws as JSON
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'score', score,
+      'darts', darts,
+      'remaining', remaining,
+      'is_bust', is_bust,
+      'player_id', player_id,
+      'created_at', created_at
+    ) ORDER BY created_at
+  ) INTO throws_json
+  FROM throws WHERE throws.game_id = game_id;
+  
+  -- Calculate stats for player 1
+  SELECT jsonb_build_object(
+    'avg', (SELECT CASE WHEN COUNT(*) > 0 THEN ROUND((SUM(score)::numeric / (COUNT(*) * 3)) * 3, 1) ELSE 0 END FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id AND NOT is_bust),
+    'darts_thrown', (SELECT COUNT(*) * 3 FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id),
+    'count80', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id AND score >= 80 AND score < 100),
+    'count100', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id AND score >= 100 AND score < 140),
+    'count140', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id AND score >= 140 AND score < 180),
+    'count180', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player1_id AND score = 180)
+  ) INTO p1_stats;
+  
+  -- Calculate stats for player 2
+  SELECT jsonb_build_object(
+    'avg', (SELECT CASE WHEN COUNT(*) > 0 THEN ROUND((SUM(score)::numeric / (COUNT(*) * 3)) * 3, 1) ELSE 0 END FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id AND NOT is_bust),
+    'darts_thrown', (SELECT COUNT(*) * 3 FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id),
+    'count80', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id AND score >= 80 AND score < 100),
+    'count100', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id AND score >= 100 AND score < 140),
+    'count140', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id AND score >= 140 AND score < 180),
+    'count180', (SELECT COUNT(*) FROM throws WHERE game_id = game_id AND player_id = game_record.player2_id AND score = 180)
+  ) INTO p2_stats;
+  
+  -- Insert into history
+  INSERT INTO game_history (
+    id, player1_id, player2_id, player1_name, player2_name,
+    start_score, legs_to_win, player1_legs, player2_legs,
+    winner_id, winner_name, throws, player1_stats, player2_stats, played_at
+  ) VALUES (
+    game_record.id, game_record.player1_id, game_record.player2_id,
+    game_record.player1_name, game_record.player2_name,
+    game_record.start_score, game_record.legs_to_win,
+    game_record.player1_legs, game_record.player2_legs,
+    game_record.winner,
+    CASE WHEN game_record.winner = game_record.player1_id THEN game_record.player1_name ELSE game_record.player2_name END,
+    throws_json, p1_stats, p2_stats, game_record.created_at
+  );
+  
+  -- Delete throws (game stays in games table for the list)
+  DELETE FROM throws WHERE throws.game_id = game_id;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Enable realtime
 alter publication supabase_realtime add table users;
 alter publication supabase_realtime add table games;
 alter publication supabase_realtime add table throws;
+alter publication supabase_realtime add table game_history;

@@ -165,6 +165,10 @@ export default function GamePage() {
     if (!game || !currentUser) return;
     
     const isPlayer1 = game.player1_id === currentUser.id;
+    const isMatchWin = isCheckout && (
+      (isPlayer1 && game.player1_legs + 1 >= game.legs_to_win) ||
+      (!isPlayer1 && game.player2_legs + 1 >= game.legs_to_win)
+    );
 
     await supabase.from('throws').insert({
       game_id: game.id,
@@ -199,6 +203,13 @@ export default function GamePage() {
     setCurrentScore('');
     setShowCheckoutModal(false);
     setPendingScore(null);
+    
+    // Archive game if match is won
+    if (isMatchWin) {
+      setTimeout(async () => {
+        await supabase.rpc('archive_finished_game', { game_id: game.id });
+      }, 2000); // Wait 2 seconds so players can see final stats
+    }
   }
 
   async function confirmCheckout() {

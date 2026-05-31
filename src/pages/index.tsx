@@ -119,6 +119,9 @@ export default function Home() {
               >
                 {currentUser.is_ready ? 'Ready ✓' : 'Ready Up'}
               </button>
+              <Link href="/stats">
+                <button className="btn">Stats</button>
+              </Link>
               <Link href="/settings">
                 <button className="btn">Settings</button>
               </Link>
