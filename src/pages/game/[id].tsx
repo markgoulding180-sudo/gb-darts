@@ -23,6 +23,9 @@ export default function GamePage() {
   const [player2Stats, setPlayer2Stats] = useState<PlayerStats>({ dartsThrown: 0, avg: 0, count80: 0, count100: 0, count140: 0, count180: 0 });
   const [editingThrow, setEditingThrow] = useState<string | null>(null);
   const [editScore, setEditScore] = useState('');
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutDarts, setCheckoutDarts] = useState(3);
+  const [pendingScore, setPendingScore] = useState<number | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -131,7 +134,14 @@ export default function GamePage() {
     e?.preventDefault();
     if (!game || !currentUser || !currentScore) return;
     const score = parseInt(currentScore);
-    if (isNaN(score) || score < 0 || score > 180) return;
+    if (isNaN(score) || score < 0 || score > 180) {
+      alert('Score must be between 0 and 180');
+      return;
+    }
+    if (!validScores.has(score)) {
+      alert(`${score} is not a valid score with 3 darts`);
+      return;
+    }
 
     const isPlayer1 = game.player1_id === currentUser.id;
     const currentTotal = isPlayer1 ? game.player1_score : game.player2_score;
@@ -140,18 +150,34 @@ export default function GamePage() {
     const newRemaining = isBust ? currentTotal : remaining;
     const isCheckout = remaining === 0;
 
+    // If checkout, show modal to ask for darts used
+    if (isCheckout) {
+      setPendingScore(score);
+      setShowCheckoutModal(true);
+      return;
+    }
+
+    // Regular throw
+    await doThrow(score, 3, newRemaining, isBust, false);
+  }
+
+  async function doThrow(score: number, darts: number, remaining: number, isBust: boolean, isCheckout: boolean) {
+    if (!game || !currentUser) return;
+    
+    const isPlayer1 = game.player1_id === currentUser.id;
+
     await supabase.from('throws').insert({
       game_id: game.id,
       player_id: currentUser.id,
       score: score,
-      darts: 3,
-      remaining: newRemaining,
+      darts: darts,
+      remaining: remaining,
       is_bust: isBust,
     });
 
     const updates: any = { current_player: isPlayer1 ? game.player2_id : game.player1_id };
-    if (isPlayer1) updates.player1_score = newRemaining;
-    else updates.player2_score = newRemaining;
+    if (isPlayer1) updates.player1_score = remaining;
+    else updates.player2_score = remaining;
 
     if (isCheckout) {
       if (isPlayer1) updates.player1_legs = game.player1_legs + 1;
@@ -171,12 +197,40 @@ export default function GamePage() {
 
     await supabase.from('games').update(updates).eq('id', game.id);
     setCurrentScore('');
+    setShowCheckoutModal(false);
+    setPendingScore(null);
+  }
+
+  async function confirmCheckout() {
+    if (!game || !currentUser || pendingScore === null) return;
+    const isPlayer1 = game.player1_id === currentUser.id;
+    const currentTotal = isPlayer1 ? game.player1_score : game.player2_score;
+    await doThrow(pendingScore, checkoutDarts, 0, false, true);
   }
 
   function startEdit(t: Throw) {
     setEditingThrow(t.id);
     setEditScore(t.score.toString());
+    // Auto-select the input after a short delay
+    setTimeout(() => {
+      const input = document.getElementById('edit-score-input');
+      if (input) {
+        (input as HTMLInputElement).select();
+      }
+    }, 50);
   }
+
+  // Valid dart scores (what can be hit with 3 darts)
+  const validScores = new Set([
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 24, 25, 26, 27, 28, 30, 32, 33, 34, 35, 36, 38, 39, 40, 42, 44, 45,
+    46, 48, 50, 51, 52, 54, 55, 56, 57, 58, 60, 62, 63, 64, 65, 66, 68, 69, 70,
+    72, 75, 76, 78, 80, 81, 84, 85, 87, 88, 90, 92, 94, 95, 96, 99, 100, 102,
+    104, 105, 108, 110, 111, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
+    124, 125, 126, 128, 129, 130, 132, 133, 134, 135, 136, 138, 140, 141, 142,
+    144, 145, 147, 148, 150, 152, 153, 154, 155, 156, 158, 159, 160, 162, 164,
+    165, 168, 170, 171, 174, 177, 180
+  ]);
 
   async function saveEdit(throwId: string) {
     const newScore = parseInt(editScore);
@@ -300,7 +354,7 @@ export default function GamePage() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0e1a 0%, #0d1429 100%)', padding: '10px 20px', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', padding: '8px 0', borderBottom: '1px solid rgba(0,212,255,0.2)', marginBottom: '10px' }}>
-        <div style={{ fontSize: '0.9rem', color: '#00d4ff', textTransform: 'uppercase', letterSpacing: '2px' }}>GB Darts</div>
+        <div style={{ fontSize: '0.9rem', color: '#00d4ff', textTransform: 'uppercase', letterSpacing: '2px' }}>GB Darts · Match #{game.id.slice(0, 8).toUpperCase()}</div>
         <div style={{ fontSize: '1rem', fontWeight: '700' }}>
           First to {game.legs_to_win} Legs · Leg {game.current_leg} · {game.player1_legs}-{game.player2_legs}
         </div>
@@ -471,6 +525,73 @@ export default function GamePage() {
       {/* Audio for 180 */}
       <audio ref={audioRef} src="/russ-bray-180.mp3" preload="auto" />
 
+      {/* Checkout Modal */}
+      {showCheckoutModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#111a33',
+            border: '2px solid #00d4ff',
+            borderRadius: '12px',
+            padding: '30px',
+            textAlign: 'center',
+            minWidth: '300px',
+          }}>
+            <div style={{ fontSize: '1.5rem', color: '#00ff88', fontWeight: '700', marginBottom: '15px' }}>
+              🎯 CHECKOUT!
+            </div>
+            <div style={{ fontSize: '1rem', color: '#fff', marginBottom: '20px' }}>
+              You hit {pendingScore}!
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#8b9dc3', marginBottom: '15px' }}>
+              How many darts did you use?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+              {[1, 2, 3].map(darts => (
+                <button
+                  key={darts}
+                  onClick={() => setCheckoutDarts(darts)}
+                  style={{
+                    padding: '10px 20px',
+                    background: checkoutDarts === darts ? '#00d4ff' : 'rgba(0,212,255,0.2)',
+                    border: `2px solid ${checkoutDarts === darts ? '#00d4ff' : 'rgba(0,212,255,0.5)'}`,
+                    borderRadius: '8px',
+                    color: checkoutDarts === darts ? '#000' : '#00d4ff',
+                    fontWeight: '700',
+                    fontSize: '1.1rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {darts}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={confirmCheckout}
+              style={{
+                padding: '12px 30px',
+                background: '#00ff88',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1rem',
+                cursor: 'pointer',
+              }}
+            >
+              Confirm Checkout
+            </button>
+          </div>
+        </div>
+      )}
+
       {game.status === 'finished' && (
         <div style={{ textAlign: 'center', padding: '15px', background: 'rgba(0,255,136,0.1)', borderTop: '1px solid rgba(0,255,136,0.3)' }}>
           <div style={{ fontSize: '1.3rem', color: '#00ff88', fontWeight: '700' }}>Game Over!</div>
@@ -573,16 +694,19 @@ function ThrowsBox({ throws, label, editingThrow, editScore, setEditScore, onEdi
               {isEditing ? (
                 <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                   <input
+                    id="edit-score-input"
                     type="number"
                     value={editScore}
                     onChange={e => setEditScore(e.target.value)}
+                    autoFocus
+                    onFocus={e => e.target.select()}
                     style={{
                       width: '50px',
                       padding: '3px',
                       fontSize: '0.8rem',
                       textAlign: 'center',
                       background: 'rgba(0,0,0,0.5)',
-                      border: '1px solid #00d4ff',
+                      border: '2px solid #00ff88',
                       borderRadius: '3px',
                       color: '#fff',
                     }}
