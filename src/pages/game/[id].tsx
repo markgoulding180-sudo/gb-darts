@@ -195,11 +195,18 @@ export default function GamePage() {
     
     // Update the throw in database
     console.log('Updating throw', throwId, 'from', oldScore, 'to', newScore);
-    const { data: updateData, error } = await supabase.from('throws').update({ 
-      score: newScore,
-      remaining: isBust ? oldRemaining : newRemaining,
-      is_bust: isBust
-    }).eq('id', throwId).select();
+    
+    // Try update with game_id for RLS
+    const { data: updateData, error } = await supabase
+      .from('throws')
+      .update({ 
+        score: newScore,
+        remaining: isBust ? oldRemaining : newRemaining,
+        is_bust: isBust
+      })
+      .eq('id', throwId)
+      .eq('game_id', game.id)
+      .select();
     
     if (error) {
       console.error('Error updating throw:', error);
@@ -207,6 +214,12 @@ export default function GamePage() {
       return;
     }
     console.log('Update result:', updateData);
+    
+    if (!updateData || updateData.length === 0) {
+      console.error('No rows updated - RLS policy may be blocking');
+      alert('Could not update score. You may only edit your own throws in active games.');
+      return;
+    }
     
     // Recalculate current score for the player from ALL their throws
     const isPlayer1Throw = throwToEdit.player_id === game.player1_id;
