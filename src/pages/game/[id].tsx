@@ -457,7 +457,6 @@ export default function GamePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* Big Webcam - Shows whoever's turn it is */}
           <div style={{
-            flex: 1,
             background: '#000',
             borderRadius: '10px',
             overflow: 'hidden',
@@ -466,7 +465,8 @@ export default function GamePage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '300px',
+            aspectRatio: '1 / 1',
+            maxHeight: '400px',
           }}>
             {showMyWebcamBig ? (
               <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

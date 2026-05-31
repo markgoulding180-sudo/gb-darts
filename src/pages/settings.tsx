@@ -200,14 +200,17 @@ export default function Settings() {
             borderRadius: '12px', 
             overflow: 'hidden',
             border: '2px solid rgba(0, 212, 255, 0.4)',
-            marginTop: '20px'
+            marginTop: '20px',
+            aspectRatio: '1 / 1',
+            maxWidth: '400px',
+            margin: '20px auto 0'
           }}>
             <video
               ref={videoRef}
               autoPlay
               muted
               playsInline
-              style={{ width: '100%', height: '300px', objectFit: 'cover' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>
           
