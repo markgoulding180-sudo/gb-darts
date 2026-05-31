@@ -258,7 +258,7 @@ export default function Home() {
   return (
     <div className="container">
       <header className="header">
-        <h1 className="logo">GB Darts</h1>
+        <h1 className="logo">🎯 GB Darts</h1>
         <div className="nav-buttons">
           {currentUser ? (
             <>
