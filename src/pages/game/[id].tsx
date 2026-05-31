@@ -21,6 +21,8 @@ export default function GamePage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [player1Stats, setPlayer1Stats] = useState<PlayerStats>({ dartsThrown: 0, avg: 0, count80: 0, count100: 0, count140: 0, count180: 0 });
   const [player2Stats, setPlayer2Stats] = useState<PlayerStats>({ dartsThrown: 0, avg: 0, count80: 0, count100: 0, count140: 0, count180: 0 });
+  const [editingThrow, setEditingThrow] = useState<string | null>(null);
+  const [editScore, setEditScore] = useState('');
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -159,6 +161,24 @@ export default function GamePage() {
     setCurrentScore('');
   }
 
+  function startEdit(t: Throw) {
+    setEditingThrow(t.id);
+    setEditScore(t.score.toString());
+  }
+
+  async function saveEdit(throwId: string) {
+    const newScore = parseInt(editScore);
+    if (isNaN(newScore) || newScore < 0 || newScore > 180) return;
+    
+    // Update the throw
+    await supabase.from('throws').update({ score: newScore }).eq('id', throwId);
+    
+    // Recalculate game state (simplified - just update the throw)
+    setEditingThrow(null);
+    setEditScore('');
+    fetchThrows();
+  }
+
   if (!game) return <div style={{ padding: 40, textAlign: 'center', color: '#00d4ff' }}>Loading...</div>;
 
   const isMyTurn = game.current_player === currentUser?.id;
@@ -174,6 +194,9 @@ export default function GamePage() {
   const opponentStats = isPlayer1 ? player2Stats : player1Stats;
   const myThrows = getPlayerThrows(currentUser?.id || '');
   const opponentThrows = getPlayerThrows(opponentId);
+
+  // Determine whose webcam shows big based on whose turn it is
+  const showMyWebcamBig = isMyTurn;
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0e1a 0%, #0d1429 100%)', padding: '10px 20px', display: 'flex', flexDirection: 'column' }}>
@@ -232,31 +255,52 @@ export default function GamePage() {
             <StatsBox label={opponentName} stats={opponentStats} />
           </div>
 
-          {/* Last Throws Row */}
+          {/* Last Throws Row with Edit */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', flex: 1 }}>
-            <ThrowsBox throws={myThrows} label="Your Last Throws" />
-            <ThrowsBox throws={opponentThrows} label={`${opponentName}'s Last Throws`} />
+            <ThrowsBox 
+              throws={myThrows} 
+              label="Your Last Throws" 
+              editingThrow={editingThrow}
+              editScore={editScore}
+              setEditScore={setEditScore}
+              onEdit={startEdit}
+              onSave={saveEdit}
+            />
+            <ThrowsBox 
+              throws={opponentThrows} 
+              label={`${opponentName}'s Last Throws`}
+              editingThrow={editingThrow}
+              editScore={editScore}
+              setEditScore={setEditScore}
+              onEdit={startEdit}
+              onSave={saveEdit}
+            />
           </div>
         </div>
 
-        {/* RIGHT: Webcam */}
+        {/* RIGHT: Webcam - Swaps based on turn */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Opponent Webcam - Big */}
+          {/* Big Webcam - Shows whoever's turn it is */}
           <div style={{
             flex: 1,
             background: '#000',
             borderRadius: '10px',
             overflow: 'hidden',
-            border: '2px solid rgba(0,212,255,0.4)',
+            border: `3px solid ${showMyWebcamBig ? '#00d4ff' : 'rgba(0,212,255,0.4)'}`,
+            boxShadow: showMyWebcamBig ? '0 0 20px rgba(0,212,255,0.3)' : 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '300px',
           }}>
-            <span style={{ color: '#333', fontSize: '1rem' }}>{opponentName}'s Webcam</span>
+            {showMyWebcamBig ? (
+              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ color: '#333', fontSize: '1rem' }}>{opponentName}'s Webcam</span>
+            )}
           </div>
 
-          {/* My Webcam - Small Square, Left Aligned */}
+          {/* Small Webcam - Shows the other player */}
           <div style={{
             display: 'flex',
             justifyContent: 'flex-start',
@@ -269,7 +313,13 @@ export default function GamePage() {
               overflow: 'hidden',
               border: '1px solid rgba(0,212,255,0.3)',
             }}>
-              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {!showMyWebcamBig ? (
+                <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontSize: '0.7rem' }}>
+                  {opponentName}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -381,7 +431,17 @@ function StatsBox({ label, stats }: { label: string; stats: PlayerStats }) {
   );
 }
 
-function ThrowsBox({ throws, label }: { throws: Throw[]; label: string }) {
+interface ThrowsBoxProps {
+  throws: Throw[];
+  label: string;
+  editingThrow: string | null;
+  editScore: string;
+  setEditScore: (s: string) => void;
+  onEdit: (t: Throw) => void;
+  onSave: (id: string) => void;
+}
+
+function ThrowsBox({ throws, label, editingThrow, editScore, setEditScore, onEdit, onSave }: ThrowsBoxProps) {
   return (
     <div style={{
       padding: '10px',
@@ -393,21 +453,78 @@ function ThrowsBox({ throws, label }: { throws: Throw[]; label: string }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
         {[0, 1, 2].map((i) => {
           const t = throws[throws.length - 1 - i];
+          const isEditing = t && editingThrow === t.id;
+          
           return (
             <div key={i} style={{
               display: 'flex',
               justifyContent: 'space-between',
-              padding: '8px 10px',
+              alignItems: 'center',
+              padding: '6px 8px',
               background: t ? (t.is_bust ? 'rgba(255,51,102,0.1)' : 'rgba(0,212,255,0.1)') : 'rgba(255,255,255,0.02)',
               border: `1px solid ${t ? (t.is_bust ? '#ff3366' : 'rgba(0,212,255,0.3)') : 'rgba(255,255,255,0.1)'}`,
               borderRadius: '4px',
             }}>
-              <span style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>
+              <span style={{ fontSize: '0.65rem', color: '#8b9dc3' }}>
                 {t ? `D${(throws.length - i) * 3 - 2}-${(throws.length - i) * 3}` : '-'}
               </span>
-              <span style={{ fontWeight: '700', fontSize: '0.9rem', color: t ? (t.is_bust ? '#ff3366' : '#fff') : '#555' }}>
-                {t ? `${t.score}${t.is_bust ? ' B' : ''}` : '-'}
-              </span>
+              
+              {isEditing ? (
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    value={editScore}
+                    onChange={e => setEditScore(e.target.value)}
+                    style={{
+                      width: '50px',
+                      padding: '3px',
+                      fontSize: '0.8rem',
+                      textAlign: 'center',
+                      background: 'rgba(0,0,0,0.5)',
+                      border: '1px solid #00d4ff',
+                      borderRadius: '3px',
+                      color: '#fff',
+                    }}
+                  />
+                  <button
+                    onClick={() => onSave(t.id)}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '0.65rem',
+                      background: '#00ff88',
+                      border: 'none',
+                      borderRadius: '3px',
+                      color: '#000',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontWeight: '700', fontSize: '0.85rem', color: t ? (t.is_bust ? '#ff3366' : '#fff') : '#555' }}>
+                    {t ? `${t.score}${t.is_bust ? ' B' : ''}` : '-'}
+                  </span>
+                  {t && (
+                    <button
+                      onClick={() => onEdit(t)}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '0.6rem',
+                        background: 'rgba(0,212,255,0.2)',
+                        border: '1px solid rgba(0,212,255,0.5)',
+                        borderRadius: '3px',
+                        color: '#00d4ff',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
