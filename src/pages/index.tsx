@@ -15,6 +15,7 @@ export default function Home() {
   });
 
   useEffect(() => {
+    fetchCurrentUser();
     fetchUsers();
     fetchGames();
     
@@ -34,6 +35,14 @@ export default function Home() {
       gamesChannel.unsubscribe();
     };
   }, []);
+
+  async function fetchCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('users').select('*').eq('id', user.id).single();
+      if (data) setCurrentUser(data);
+    }
+  }
 
   async function fetchUsers() {
     const { data } = await supabase
