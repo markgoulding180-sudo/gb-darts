@@ -44,18 +44,30 @@ export default function Settings() {
     try {
       // First request permission by getting user media
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      stream.getTracks().forEach(track => track.stop()); // Stop immediately, just needed permission
+      
+      // Keep stream active briefly to ensure labels are populated
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Now enumerate devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
-      setCameras(videoDevices);
-      if (videoDevices.length > 0) {
-        setSelectedCamera(videoDevices[0].deviceId);
+      
+      console.log('Found cameras:', videoDevices);
+      
+      if (videoDevices.length === 0) {
+        alert('No cameras found. Please check your device.');
+        return;
       }
+      
+      setCameras(videoDevices);
+      setSelectedCamera(videoDevices[0].deviceId);
+      
+      // Start the first camera
+      startWebcam(videoDevices[0].deviceId);
+      
     } catch (err) {
-      console.log('Camera permission denied or error:', err);
-      alert('Please allow camera access in your browser settings to use the webcam feature.');
+      console.error('Camera permission error:', err);
+      alert('Camera access denied. Please allow camera access in your browser settings and refresh the page.');
     }
   }
 
