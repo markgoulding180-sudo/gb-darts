@@ -455,7 +455,7 @@ export default function GamePage() {
 
         {/* RIGHT: Video Call */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Video Call - Click to join */}
+          {/* Embedded Video Call */}
           <div style={{
             background: '#000',
             borderRadius: '10px',
@@ -464,35 +464,12 @@ export default function GamePage() {
             boxShadow: '0 0 20px rgba(0,212,255,0.3)',
             aspectRatio: '1 / 1',
             maxHeight: '400px',
-            display: 'flex',
-            flexDirection: 'column',
           }}>
-            <div style={{ padding: '10px', background: 'rgba(0,212,255,0.1)', borderBottom: '1px solid rgba(0,212,255,0.3)' }}>
-              <span style={{ color: '#00d4ff', fontSize: '0.8rem' }}>🎥 Video Call</span>
-            </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px' }}>
-              <p style={{ color: '#8b9dc3', fontSize: '0.9rem', textAlign: 'center', padding: '0 20px' }}>
-                Click to start video call with {opponentName}
-              </p>
-              <a 
-                href={`https://meet.jit.si/gbdarts-${id}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{
-                  padding: '10px 20px',
-                  background: '#00d4ff',
-                  color: '#0a0e1a',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                }}
-              >
-                Join Video Call
-              </a>
-              <p style={{ color: '#666', fontSize: '0.7rem' }}>
-                Opens in new tab
-              </p>
-            </div>
+            <iframe
+              src={`https://meet.jit.si/gbdarts-${id}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS=true&interfaceConfig.DISABLE_VIDEO_BACKGROUND=true`}
+              allow="camera; microphone; autoplay; display-capture"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
           </div>
           
           {/* Local webcam preview (small) */}
