@@ -118,7 +118,7 @@ export default function GamePage() {
     const avg = dartsThrown > 0 ? (totalScore / dartsThrown) * 3 : 0;
     return {
       dartsThrown,
-      avg: Math.round(avg * 10) / 10,
+      avg: Math.round(avg * 100) / 100, // 2 decimal places
       count80: playerThrows.filter(t => t.score >= 80 && t.score < 100).length,
       count100: playerThrows.filter(t => t.score >= 100 && t.score < 140).length,
       count140: playerThrows.filter(t => t.score >= 140 && t.score < 180).length,
