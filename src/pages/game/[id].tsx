@@ -194,16 +194,19 @@ export default function GamePage() {
     const isBust = newRemaining < 0 || newRemaining === 1;
     
     // Update the throw in database
-    const { error } = await supabase.from('throws').update({ 
+    console.log('Updating throw', throwId, 'from', oldScore, 'to', newScore);
+    const { data: updateData, error } = await supabase.from('throws').update({ 
       score: newScore,
       remaining: isBust ? oldRemaining : newRemaining,
       is_bust: isBust
-    }).eq('id', throwId);
+    }).eq('id', throwId).select();
     
     if (error) {
       console.error('Error updating throw:', error);
+      alert('Error updating score: ' + error.message);
       return;
     }
+    console.log('Update result:', updateData);
     
     // Recalculate current score for the player from ALL their throws
     const isPlayer1Throw = throwToEdit.player_id === game.player1_id;
