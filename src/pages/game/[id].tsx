@@ -204,8 +204,8 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1, maxHeight: 'calc(100vh - 100px)' }}>
+      {/* Two Column Layout - Compact */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', flex: 1, overflow: 'hidden' }}>
         
         {/* Player 1 Column */}
         <PlayerColumn 
@@ -318,86 +318,89 @@ function PlayerColumn({ playerName, score, legs, isCurrentPlayer, isMe, videoRef
     <div style={{
       background: 'rgba(0,212,255,0.05)',
       border: `2px solid ${isCurrentPlayer ? '#00d4ff' : 'rgba(0,212,255,0.3)'}`,
-      borderRadius: '12px',
-      padding: '15px',
+      borderRadius: '8px',
+      padding: '10px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '10px',
-      boxShadow: isCurrentPlayer ? '0 0 20px rgba(0,212,255,0.2)' : 'none',
+      gap: '8px',
+      boxShadow: isCurrentPlayer ? '0 0 15px rgba(0,212,255,0.2)' : 'none',
+      height: '100%',
+      overflow: 'hidden',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid rgba(0,212,255,0.2)' }}>
-        <span style={{ fontSize: '1.1rem', fontWeight: '700', textTransform: 'uppercase' }}>{playerName}</span>
-        <span style={{ color: '#00d4ff', fontSize: '0.9rem' }}>Legs: {legs}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(0,212,255,0.2)' }}>
+        <span style={{ fontSize: '0.95rem', fontWeight: '700', textTransform: 'uppercase' }}>{playerName}</span>
+        <span style={{ color: '#00d4ff', fontSize: '0.8rem' }}>Legs: {legs}</span>
       </div>
 
-      {/* Webcam */}
+      {/* Webcam - Smaller */}
       <div style={{
         background: '#000',
-        borderRadius: '8px',
+        borderRadius: '6px',
         overflow: 'hidden',
-        aspectRatio: '16/9',
+        height: '140px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        flexShrink: 0,
       }}>
         {videoRef ? (
           <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ color: '#333', fontSize: '0.8rem' }}>Opponent Webcam</span>
+          <span style={{ color: '#444', fontSize: '0.75rem' }}>Opponent Webcam</span>
         )}
       </div>
 
-      {/* Big Score */}
+      {/* Big Score - Compact */}
       <div style={{
         textAlign: 'center',
-        padding: '15px',
+        padding: '8px',
         background: 'rgba(0,212,255,0.1)',
-        borderRadius: '8px',
+        borderRadius: '6px',
+        flexShrink: 0,
       }}>
-        <div style={{ fontSize: '4rem', fontWeight: '900', color: '#00d4ff', textShadow: '0 0 20px rgba(0,212,255,0.5)', lineHeight: 1 }}>
+        <div style={{ fontSize: '3rem', fontWeight: '900', color: '#00d4ff', textShadow: '0 0 15px rgba(0,212,255,0.5)', lineHeight: 1 }}>
           {score}
         </div>
-        <div style={{ fontSize: '0.8rem', color: '#8b9dc3', marginTop: '5px' }}>TO GO</div>
+        <div style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>TO GO</div>
       </div>
 
-      {/* Last 2 Throws */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ fontSize: '0.75rem', color: '#8b9dc3', textTransform: 'uppercase' }}>Last Throws (click to edit)</div>
-        {throws.length === 0 ? (
-          <div style={{ color: '#555', fontSize: '0.9rem', padding: '10px', textAlign: 'center' }}>No throws yet</div>
-        ) : (
-          throws.map((t, i) => (
-            <div key={t.id} style={{
+      {/* Last 2 Throws - Compact */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flexShrink: 0 }}>
+        <div style={{ fontSize: '0.65rem', color: '#8b9dc3', textTransform: 'uppercase' }}>Last Throws</div>
+        {[0, 1].map((i) => {
+          const t = throws[throws.length - 1 - i];
+          return (
+            <div key={i} style={{
               display: 'flex',
               justifyContent: 'space-between',
-              padding: '10px 15px',
-              background: t.is_bust ? 'rgba(255,51,102,0.1)' : 'rgba(0,212,255,0.1)',
-              border: `1px solid ${t.is_bust ? '#ff3366' : 'rgba(0,212,255,0.3)'}`,
-              borderRadius: '6px',
-              cursor: 'pointer',
+              padding: '6px 10px',
+              background: t ? (t.is_bust ? 'rgba(255,51,102,0.1)' : 'rgba(0,212,255,0.1)') : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${t ? (t.is_bust ? '#ff3366' : 'rgba(0,212,255,0.3)') : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: '4px',
+              cursor: t ? 'pointer' : 'default',
             }}>
-              <span style={{ fontSize: '0.85rem', color: '#8b9dc3' }}>Dart {(throws.length - 1 - i + 1) * 3 - 2}-{(throws.length - 1 - i + 1) * 3}</span>
-              <span style={{ fontWeight: '700', color: t.is_bust ? '#ff3366' : '#fff' }}>
-                {t.score} {t.is_bust && '(BUST)'}
+              <span style={{ fontSize: '0.7rem', color: '#8b9dc3' }}>
+                {t ? `Darts ${(throws.length - i) * 3 - 2}-${(throws.length - i) * 3}` : '-'}
+              </span>
+              <span style={{ fontWeight: '700', fontSize: '0.85rem', color: t ? (t.is_bust ? '#ff3366' : '#fff') : '#555' }}>
+                {t ? `${t.score}${t.is_bust ? ' B' : ''}` : '-'}
               </span>
             </div>
-          ))
-        )}
-        {throws.length < 2 && (
-          <div style={{ color: '#555', fontSize: '0.9rem', padding: '10px', textAlign: 'center' }}>-</div>
-        )}
+          );
+        })}
       </div>
 
-      {/* Stats */}
+      {/* Stats - Compact Grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '8px',
-        padding: '10px',
+        gap: '5px',
+        padding: '8px',
         background: 'rgba(0,0,0,0.2)',
-        borderRadius: '8px',
-        fontSize: '0.75rem',
+        borderRadius: '6px',
+        fontSize: '0.7rem',
+        marginTop: 'auto',
       }}>
         <StatBox label="Avg" value={stats.avg.toString()} />
         <StatBox label="80+" value={stats.count80.toString()} />
@@ -413,8 +416,8 @@ function PlayerColumn({ playerName, score, legs, isCurrentPlayer, isMe, videoRef
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: '0.65rem', color: '#8b9dc3', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: '1rem', fontWeight: '700', color: '#00d4ff' }}>{value}</div>
+      <div style={{ fontSize: '0.6rem', color: '#8b9dc3', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#00d4ff' }}>{value}</div>
     </div>
   );
 }
