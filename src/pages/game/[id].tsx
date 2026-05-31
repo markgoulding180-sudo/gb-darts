@@ -488,6 +488,11 @@ export default function GamePage() {
         </div>
       </div>
 
+      {/* Debug Info */}
+      <div style={{ textAlign: 'center', padding: '5px', fontSize: '0.7rem', color: '#666' }}>
+        Debug: isMyTurn={isMyTurn.toString()}, status={game.status}, currentPlayer={game.current_player?.slice(0,8)}, myId={currentUser?.id?.slice(0,8)}
+      </div>
+
       {/* Score Input - Bottom */}
       {isMyTurn && game.status === 'playing' && (
         <form onSubmit={submitScore} style={{ display: 'flex', justifyContent: 'center', gap: '10px', padding: '10px', borderTop: '1px solid rgba(0,212,255,0.2)' }}>
