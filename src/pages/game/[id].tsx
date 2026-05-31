@@ -182,13 +182,43 @@ export default function GamePage() {
     const newScore = parseInt(editScore);
     if (isNaN(newScore) || newScore < 0 || newScore > 180) return;
     
-    // Update the throw
-    await supabase.from('throws').update({ score: newScore }).eq('id', throwId);
+    // Get the throw being edited
+    const throwToEdit = throws.find(t => t.id === throwId);
+    if (!throwToEdit || !game) return;
     
-    // Recalculate game state (simplified - just update the throw)
+    // Update the throw in database
+    const remaining = throwToEdit.remaining + throwToEdit.score - newScore;
+    const isBust = remaining < 0 || remaining === 1;
+    await supabase.from('throws').update({ 
+      score: newScore,
+      remaining: isBust ? throwToEdit.remaining + throwToEdit.score : remaining,
+      is_bust: isBust
+    }).eq('id', throwId);
+    
+    // Recalculate current score for the player
+    const isPlayer1Throw = throwToEdit.player_id === game.player1_id;
+    const playerThrows = throws.filter(t => 
+      t.player_id === throwToEdit.player_id && 
+      t.id !== throwId // Exclude the one we just updated
+    );
+    
+    // Calculate total scored by this player in current leg
+    const totalScored = playerThrows.reduce((sum, t) => sum + (t.is_bust ? 0 : t.score), 0) + (isBust ? 0 : newScore);
+    const newPlayerScore = Math.max(0, game.start_score - totalScored);
+    
+    // Update game score
+    const updates: any = {};
+    if (isPlayer1Throw) {
+      updates.player1_score = newPlayerScore;
+    } else {
+      updates.player2_score = newPlayerScore;
+    }
+    await supabase.from('games').update(updates).eq('id', game.id);
+    
     setEditingThrow(null);
     setEditScore('');
     fetchThrows();
+    fetchGame();
   }
 
   if (!game) return <div style={{ padding: 40, textAlign: 'center', color: '#00d4ff' }}>Loading...</div>;
