@@ -37,28 +37,39 @@ export default function Home() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // Heartbeat - update last_seen every 30 seconds
+    const heartbeat = setInterval(() => {
+      if (currentUser) {
+        supabase.from('users').update({ is_online: true, last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+      }
+    }, 30000);
+
     return () => {
       usersChannel.unsubscribe();
       gamesChannel.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(heartbeat);
     };
   }, [currentUser]);
 
   async function fetchCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // Mark user as online when they load the page
-      await supabase.from('users').update({ is_online: true }).eq('id', user.id);
+      // Mark user as online with last_seen when they load the page
+      await supabase.from('users').update({ is_online: true, last_seen: new Date().toISOString() }).eq('id', user.id);
       const { data } = await supabase.from('users').select('*').eq('id', user.id).single();
       if (data) setCurrentUser(data);
     }
   }
 
   async function fetchUsers() {
+    // Only show users who were active in the last 2 minutes
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('users')
       .select('*')
       .eq('is_online', true)
+      .gte('last_seen', twoMinutesAgo)
       .order('username');
     if (data) setUsers(data);
   }
