@@ -213,7 +213,13 @@ export default function GamePage() {
     // Archive game if match is won
     if (isMatchWin) {
       setTimeout(async () => {
-        await supabase.rpc('archive_finished_game', { game_id: game.id });
+        console.log('Archiving game:', game.id);
+        const { error } = await supabase.rpc('archive_finished_game', { game_id: game.id });
+        if (error) {
+          console.error('Error archiving game:', error);
+        } else {
+          console.log('Game archived successfully');
+        }
       }, 2000); // Wait 2 seconds so players can see final stats
     }
   }
