@@ -264,15 +264,26 @@ export default function Home() {
           <div className="card" style={{ border: '2px solid #00ff88' }}>
             <h2 className="card-title" style={{ color: '#00ff88' }}>Your Game</h2>
             <div className="user-list">
-              {games.filter(g => g.status === 'waiting' && g.player1_id === currentUser.id).map(game => (
-                <div key={game.id} className="user-item" style={{ borderColor: '#00ff88' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {games.filter(g => g.status === 'waiting' && g.player1_id === currentUser.id).slice(0, 1).map(game => (
+                <div key={game.id} className="user-item" style={{ borderColor: '#00ff88', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '10px' }}>
                     <span className="user-name">Waiting for opponent...</span>
                     <span style={{ fontSize: '0.75rem', color: '#8b9dc3' }}>
                       {game.start_score} · Best of {game.legs_to_win * 2 - 1}
                       {game.pin && ' 🔒 PIN Protected'}
                     </span>
                   </div>
+                  <button 
+                    className="btn" 
+                    onClick={async () => {
+                      await supabase.from('games').delete().eq('id', game.id);
+                      await supabase.from('users').update({ is_ready: false }).eq('id', currentUser.id);
+                      setCurrentUser({ ...currentUser, is_ready: false });
+                    }}
+                    style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                  >
+                    Cancel Game
+                  </button>
                 </div>
               ))}
             </div>
@@ -317,16 +328,25 @@ export default function Home() {
         <div className="card">
           <h2 className="card-title">Online Players</h2>
           <div className="user-list">
-            {users.filter(u => u.id !== currentUser?.id && !getUserGame(u.id)).map(user => (
-              <div
+            {users.filter(u => !getUserGame(u.id)).map(user => (
+              <Link 
                 key={user.id}
-                className="user-item"
+                href={`/profile/${user.id}`}
+                style={{ textDecoration: 'none' }}
               >
-                <span className="user-name">{user.username}</span>
-                <span className="status-dot online" />
-              </div>
+                <div
+                  className="user-item"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="user-name">
+                    {user.username}
+                    {currentUser?.id === user.id && ' ⭐'}
+                  </span>
+                  <span className="status-dot online" />
+                </div>
+              </Link>
             ))}
-            {users.filter(u => u.id !== currentUser?.id && !getUserGame(u.id)).length === 0 && (
+            {users.filter(u => !getUserGame(u.id)).length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '20px' }}>
                 No other players online
               </p>
