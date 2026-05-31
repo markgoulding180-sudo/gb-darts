@@ -74,15 +74,21 @@ export default function Home() {
 
     // Check if someone joined our game (we're player1 and game is playing)
     const checkGameStarted = setInterval(async () => {
-      if (!currentUser) return;
-      const { data } = await supabase
+      if (!currentUser) {
+        console.log('checkGameStarted: no currentUser');
+        return;
+      }
+      console.log('checkGameStarted: checking for games...', currentUser.id);
+      const { data, error } = await supabase
         .from('games')
         .select('*')
         .eq('player1_id', currentUser.id)
         .eq('status', 'playing')
         .single();
+      console.log('checkGameStarted result:', data, error);
       if (data) {
         // Someone joined our game, redirect to it
+        console.log('Redirecting to game:', data.id);
         window.location.href = `/game/${data.id}`;
       }
     }, 2000); // Check every 2 seconds
