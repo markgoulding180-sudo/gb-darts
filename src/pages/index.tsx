@@ -39,6 +39,8 @@ export default function Home() {
   async function fetchCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      // Mark user as online when they load the page
+      await supabase.from('users').update({ is_online: true }).eq('id', user.id);
       const { data } = await supabase.from('users').select('*').eq('id', user.id).single();
       if (data) setCurrentUser(data);
     }
