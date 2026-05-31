@@ -453,49 +453,58 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* RIGHT: Webcam - Swaps based on turn */}
+        {/* RIGHT: Video Call */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Big Webcam - Shows whoever's turn it is */}
+          {/* Video Call - Click to join */}
           <div style={{
             background: '#000',
             borderRadius: '10px',
             overflow: 'hidden',
-            border: `3px solid ${showMyWebcamBig ? '#00d4ff' : 'rgba(0,212,255,0.4)'}`,
-            boxShadow: showMyWebcamBig ? '0 0 20px rgba(0,212,255,0.3)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            border: '3px solid #00d4ff',
+            boxShadow: '0 0 20px rgba(0,212,255,0.3)',
             aspectRatio: '1 / 1',
             maxHeight: '400px',
-          }}>
-            {showMyWebcamBig ? (
-              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ color: '#333', fontSize: '1rem' }}>{opponentName}'s Webcam</span>
-            )}
-          </div>
-
-          {/* Small Webcam - Shows the other player */}
-          <div style={{
             display: 'flex',
-            justifyContent: 'flex-start',
+            flexDirection: 'column',
           }}>
-            <div style={{
-              width: '120px',
-              height: '120px',
-              background: '#000',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              border: '1px solid rgba(0,212,255,0.3)',
-            }}>
-              {!showMyWebcamBig ? (
-                <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontSize: '0.7rem' }}>
-                  {opponentName}
-                </div>
-              )}
+            <div style={{ padding: '10px', background: 'rgba(0,212,255,0.1)', borderBottom: '1px solid rgba(0,212,255,0.3)' }}>
+              <span style={{ color: '#00d4ff', fontSize: '0.8rem' }}>🎥 Video Call</span>
             </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px' }}>
+              <p style={{ color: '#8b9dc3', fontSize: '0.9rem', textAlign: 'center', padding: '0 20px' }}>
+                Click to start video call with {opponentName}
+              </p>
+              <a 
+                href={`https://meet.jit.si/gbdarts-${id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  padding: '10px 20px',
+                  background: '#00d4ff',
+                  color: '#0a0e1a',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '700',
+                }}
+              >
+                Join Video Call
+              </a>
+              <p style={{ color: '#666', fontSize: '0.7rem' }}>
+                Opens in new tab
+              </p>
+            </div>
+          </div>
+          
+          {/* Local webcam preview (small) */}
+          <div style={{
+            width: '120px',
+            height: '120px',
+            background: '#000',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            border: '1px solid rgba(0,212,255,0.3)',
+          }}>
+            <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
         </div>
       </div>
