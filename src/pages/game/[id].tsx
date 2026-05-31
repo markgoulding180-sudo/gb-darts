@@ -234,10 +234,23 @@ export default function GamePage() {
     setEditingThrow(null);
     setEditScore('');
     
-    // Force refresh
-    await fetchThrows();
+    // Force refresh with fresh data
+    const { data: allThrows } = await supabase
+      .from('throws')
+      .select('*')
+      .eq('game_id', game.id)
+      .order('created_at');
+      
+    if (allThrows) {
+      setThrows(allThrows);
+      // Recalculate stats immediately with fresh data
+      const p1Throws = allThrows.filter(t => t.player_id === game.player1_id && !t.is_bust);
+      const p2Throws = allThrows.filter(t => t.player_id === game.player2_id && !t.is_bust);
+      setPlayer1Stats(calcPlayerStats(p1Throws));
+      setPlayer2Stats(calcPlayerStats(p2Throws));
+    }
+    
     await fetchGame();
-    calculateStats();
   }
 
   if (!game) return <div style={{ padding: 40, textAlign: 'center', color: '#00d4ff' }}>Loading...</div>;
