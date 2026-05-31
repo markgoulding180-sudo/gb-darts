@@ -11,7 +11,12 @@ export default function Home() {
   const [gameSettings, setGameSettings] = useState({
     startScore: 501,
     legs: 3,
+    usePin: false,
+    pin: '',
   });
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [enteredPin, setEnteredPin] = useState('');
 
   useEffect(() => {
     fetchCurrentUser();
@@ -115,6 +120,12 @@ export default function Home() {
   async function createGame() {
     if (!currentUser) return;
     
+    // Validate PIN if enabled
+    if (gameSettings.usePin && gameSettings.pin.length !== 4) {
+      alert('Please enter a 4-digit PIN');
+      return;
+    }
+    
     // Create game in waiting status
     const { data: game } = await supabase
       .from('games')
@@ -132,6 +143,7 @@ export default function Home() {
         player2_score: gameSettings.startScore,
         current_player: currentUser.id,
         status: 'waiting',
+        pin: gameSettings.usePin ? gameSettings.pin : null,
       })
       .select()
       .single();
@@ -140,7 +152,34 @@ export default function Home() {
       await supabase.from('users').update({ is_ready: true }).eq('id', currentUser.id);
       setCurrentUser({ ...currentUser, is_ready: true });
       setShowReadyModal(false);
+      // Reset PIN
+      setGameSettings({ ...gameSettings, pin: '', usePin: false });
     }
+  }
+
+  function handleJoinClick(game: Game) {
+    if (game.pin) {
+      // Game has PIN, show PIN modal
+      setSelectedGame(game);
+      setShowPinModal(true);
+    } else {
+      // No PIN, join directly
+      joinGame(game);
+    }
+  }
+
+  async function verifyPinAndJoin() {
+    if (!selectedGame || !currentUser) return;
+    
+    if (enteredPin !== selectedGame.pin) {
+      alert('Incorrect PIN');
+      return;
+    }
+    
+    await joinGame(selectedGame);
+    setShowPinModal(false);
+    setEnteredPin('');
+    setSelectedGame(null);
   }
 
   async function joinGame(game: Game) {
@@ -220,36 +259,56 @@ export default function Home() {
       </header>
 
       <div className="dashboard">
-        {/* Online Users */}
+        {/* Waiting Games - New Section */}
+        <div className="card">
+          <h2 className="card-title">Waiting for Opponent</h2>
+          <div className="user-list">
+            {games.filter(g => g.status === 'waiting' && g.player1_id !== currentUser?.id).map(game => (
+              <div
+                key={game.id}
+                className="user-item ready"
+                style={{ borderColor: '#00d4ff' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span className="user-name">{game.player1_name}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#8b9dc3' }}>
+                    {game.start_score} · Best of {game.legs_to_win * 2 - 1}
+                    {game.pin && ' 🔒'}
+                  </span>
+                </div>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => handleJoinClick(game)}
+                  style={{ padding: '6px 15px', fontSize: '0.85rem' }}
+                >
+                  Join Game
+                </button>
+              </div>
+            ))}
+            {games.filter(g => g.status === 'waiting' && g.player1_id !== currentUser?.id).length === 0 && (
+              <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '20px' }}>
+                No games waiting
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Online Users - Now just shows who's online */}
         <div className="card">
           <h2 className="card-title">Online Players</h2>
           <div className="user-list">
-            {users.filter(u => u.id !== currentUser?.id).map(user => {
-              const userGame = getUserGame(user.id);
-              return (
-                <div
-                  key={user.id}
-                  className={`user-item ${user.is_ready ? 'ready' : ''}`}
-                >
-                  <span className="user-name">{user.username}</span>
-                  
-                  {user.is_ready && userGame ? (
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={() => joinGame(userGame)}
-                      style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                    >
-                      Join Game ({userGame.start_score} · Best of {userGame.legs_to_win * 2 - 1})
-                    </button>
-                  ) : (
-                    <span className={`status-dot ${user.is_ready ? 'online' : ''}`} />
-                  )}
-                </div>
-              );
-            })}
-            {users.filter(u => u.id !== currentUser?.id).length === 0 && (
+            {users.filter(u => u.id !== currentUser?.id && !getUserGame(u.id)).map(user => (
+              <div
+                key={user.id}
+                className="user-item"
+              >
+                <span className="user-name">{user.username}</span>
+                <span className="status-dot online" />
+              </div>
+            ))}
+            {users.filter(u => u.id !== currentUser?.id && !getUserGame(u.id)).length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '20px' }}>
-                No players online
+                No other players online
               </p>
             )}
           </div>
@@ -344,12 +403,73 @@ export default function Home() {
               </select>
             </div>
 
+            {/* PIN Option */}
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input
+                type="checkbox"
+                id="usePin"
+                checked={gameSettings.usePin}
+                onChange={e => setGameSettings({ ...gameSettings, usePin: e.target.checked })}
+              />
+              <label htmlFor="usePin" style={{ margin: 0, cursor: 'pointer' }}>Lock game with PIN</label>
+            </div>
+
+            {gameSettings.usePin && (
+              <div className="form-group">
+                <label className="form-label">4-Digit PIN</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={gameSettings.pin}
+                  onChange={e => setGameSettings({ ...gameSettings, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="0000"
+                  maxLength={4}
+                  style={{ textAlign: 'center', letterSpacing: '5px', fontSize: '1.2rem' }}
+                />
+              </div>
+            )}
+
             <div className="modal-buttons">
               <button className="btn" onClick={() => setShowReadyModal(false)}>
                 Cancel
               </button>
               <button className="btn btn-primary" onClick={createGame}>
                 Create Game
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN Entry Modal */}
+      {showPinModal && selectedGame && (
+        <div className="modal-overlay" onClick={() => setShowPinModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">Enter PIN</h2>
+            <p style={{ textAlign: 'center', marginBottom: '20px', color: '#8b9dc3' }}>
+              {selectedGame.player1_name}'s game is locked
+            </p>
+            
+            <div className="form-group">
+              <label className="form-label">4-Digit PIN</label>
+              <input
+                type="password"
+                className="form-input"
+                value={enteredPin}
+                onChange={e => setEnteredPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="0000"
+                maxLength={4}
+                style={{ textAlign: 'center', letterSpacing: '5px', fontSize: '1.5rem' }}
+                autoFocus
+              />
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn" onClick={() => setShowPinModal(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={verifyPinAndJoin}>
+                Join Game
               </button>
             </div>
           </div>

@@ -23,6 +23,7 @@ export interface Game {
   current_player: string;
   status: 'waiting' | 'playing' | 'finished';
   winner?: string;
+  pin?: string;
   created_at: string;
 }
 

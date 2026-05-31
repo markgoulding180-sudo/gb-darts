@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS games (
   current_player UUID REFERENCES users(id),
   status TEXT DEFAULT 'waiting', -- waiting, playing, finished
   winner UUID REFERENCES users(id),
+  pin TEXT, -- Optional 4-digit PIN for private games
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
