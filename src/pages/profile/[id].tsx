@@ -22,15 +22,19 @@ interface PlayerStats {
 
 interface GameHistory {
   id: string;
+  player1_id: string;
+  player2_id: string;
   player1_name: string;
   player2_name: string;
   player1_legs: number;
   player2_legs: number;
+  winner_id: string;
   winner_name: string;
   start_score: number;
   played_at: string;
   player1_stats: any;
   player2_stats: any;
+  throws: any[];
 }
 
 export default function Profile() {
