@@ -324,11 +324,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Online Users - Now just shows who's online */}
+        {/* Online Users - Shows all online players */}
         <div className="card">
           <h2 className="card-title">Online Players</h2>
           <div className="user-list">
-            {users.filter(u => !getUserGame(u.id)).map(user => (
+            {users.map(user => (
               <Link 
                 key={user.id}
                 href={`/profile/${user.id}`}
@@ -341,14 +341,15 @@ export default function Home() {
                   <span className="user-name">
                     {user.username}
                     {currentUser?.id === user.id && ' ⭐'}
+                    {getUserGame(user.id) && ' 🎯'}
                   </span>
                   <span className="status-dot online" />
                 </div>
               </Link>
             ))}
-            {users.filter(u => !getUserGame(u.id)).length === 0 && (
+            {users.length === 0 && (
               <p style={{ color: '#8b9dc3', textAlign: 'center', padding: '20px' }}>
-                No other players online
+                No players online
               </p>
             )}
           </div>
