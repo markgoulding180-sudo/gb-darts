@@ -158,6 +158,11 @@ export default function Home() {
   }
 
   function handleJoinClick(game: Game) {
+    console.log('Join clicked, currentUser:', currentUser, 'game:', game);
+    if (!currentUser) {
+      alert('Please login first');
+      return;
+    }
     if (game.pin) {
       // Game has PIN, show PIN modal
       setSelectedGame(game);
@@ -183,10 +188,15 @@ export default function Home() {
   }
 
   async function joinGame(game: Game) {
-    if (!currentUser) return;
+    if (!currentUser) {
+      alert('Please login first');
+      return;
+    }
+    
+    console.log('Joining game:', game.id, 'as player:', currentUser.id);
     
     // Join the game
-    const { data: updatedGame } = await supabase
+    const { data: updatedGame, error } = await supabase
       .from('games')
       .update({
         player2_id: currentUser.id,
@@ -197,7 +207,14 @@ export default function Home() {
       .select()
       .single();
 
+    if (error) {
+      console.error('Error joining game:', error);
+      alert('Error joining game: ' + error.message);
+      return;
+    }
+
     if (updatedGame) {
+      console.log('Joined game successfully:', updatedGame);
       // Mark both players as not ready
       await supabase.from('users').update({ is_ready: false }).eq('id', game.player1_id);
       await supabase.from('users').update({ is_ready: false }).eq('id', currentUser.id);
