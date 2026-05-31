@@ -651,6 +651,9 @@ export default function GamePage() {
           </button>
         </div>
       )}
+
+      {/* 180 Sound Effect */}
+      <audio ref={audioRef} src="/180.mp3" preload="auto" />
     </div>
   );
 }
