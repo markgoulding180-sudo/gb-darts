@@ -22,6 +22,7 @@ export interface Game {
   player2_score: number;
   current_player: string;
   status: 'waiting' | 'playing' | 'finished';
+  winner?: string;
   created_at: string;
 }
 
