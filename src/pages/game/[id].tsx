@@ -170,7 +170,7 @@ export default function GamePage() {
       (!isPlayer1 && game.player2_legs + 1 >= game.legs_to_win)
     );
 
-    await supabase.from('throws').insert({
+    const { error: throwError } = await supabase.from('throws').insert({
       game_id: game.id,
       player_id: currentUser.id,
       score: score,
@@ -178,6 +178,12 @@ export default function GamePage() {
       remaining: remaining,
       is_bust: isBust,
     });
+    
+    if (throwError) {
+      console.error('Error saving throw:', throwError);
+      alert('Error saving throw: ' + throwError.message);
+      return;
+    }
 
     const updates: any = { current_player: isPlayer1 ? game.player2_id : game.player1_id };
     if (isPlayer1) updates.player1_score = remaining;
