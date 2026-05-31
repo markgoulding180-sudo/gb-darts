@@ -25,6 +25,8 @@ export default function GamePage() {
   const [editScore, setEditScore] = useState('');
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastThrowCountRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -52,6 +54,16 @@ export default function GamePage() {
 
   useEffect(() => {
     calculateStats();
+    
+    // Check for new 180s and play sound
+    if (throws.length > lastThrowCountRef.current) {
+      const newThrows = throws.slice(lastThrowCountRef.current);
+      const has180 = newThrows.some(t => t.score === 180);
+      if (has180 && audioRef.current) {
+        audioRef.current.play().catch(() => {});
+      }
+      lastThrowCountRef.current = throws.length;
+    }
   }, [throws, game]);
 
   useEffect(() => {
@@ -369,6 +381,9 @@ export default function GamePage() {
           Waiting for {opponentName}...
         </div>
       )}
+
+      {/* Audio for 180 */}
+      <audio ref={audioRef} src="/russ-bray-180.mp3" preload="auto" />
 
       {game.status === 'finished' && (
         <div style={{ textAlign: 'center', padding: '15px', background: 'rgba(0,255,136,0.1)', borderTop: '1px solid rgba(0,255,136,0.3)' }}>
