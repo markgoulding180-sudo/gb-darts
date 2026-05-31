@@ -18,6 +18,20 @@ export default function Home() {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [enteredPin, setEnteredPin] = useState('');
 
+  // Check if someone joined our game whenever games update
+  useEffect(() => {
+    if (!currentUser) return;
+    const myPlayingGame = games.find(g => 
+      g.player1_id === currentUser.id && 
+      g.status === 'playing' && 
+      g.player2_id // Has a second player
+    );
+    if (myPlayingGame) {
+      console.log('Found my playing game, redirecting:', myPlayingGame.id);
+      window.location.href = `/game/${myPlayingGame.id}`;
+    }
+  }, [games, currentUser]);
+
   useEffect(() => {
     fetchCurrentUser();
     fetchUsers();
@@ -72,37 +86,12 @@ export default function Home() {
       }
     }, 30000);
 
-    // Check if someone joined our game (we're player1 and game is playing)
-    const checkGameStarted = setInterval(async () => {
-      if (!currentUser) {
-        console.log('checkGameStarted: no currentUser');
-        return;
-      }
-      console.log('checkGameStarted: checking for games...', currentUser.id);
-      const { data, error } = await supabase
-        .from('games')
-        .select('*')
-        .eq('player1_id', currentUser.id)
-        .eq('status', 'playing')
-        .single();
-      console.log('checkGameStarted result:', data, error);
-      if (data) {
-        // Someone joined our game, redirect to it
-        console.log('Redirecting to game:', data.id);
-        window.location.href = `/game/${data.id}`;
-      }
-    }, 2000); // Check every 2 seconds
-
-
-
     return () => {
       usersChannel.unsubscribe();
       gamesChannel.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(heartbeat);
-      clearInterval(checkGameStarted);
-
     };
   }, [currentUser]);
 
@@ -130,7 +119,7 @@ export default function Home() {
     const { data } = await supabase
       .from('games')
       .select('*')
-      .eq('status', 'waiting')
+      .in('status', ['waiting', 'playing'])
       .order('created_at', { ascending: false });
     if (data) setGames(data);
   }
